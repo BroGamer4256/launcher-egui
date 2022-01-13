@@ -36,7 +36,7 @@ fn hooked_main(_: i32, _: *const *const i8, _: *const *const i8) -> i32 {
 			..Default::default()
 		}),
 		eframe::NativeOptions {
-			initial_window_size: Some(egui::vec2(400.0, 480.0)),
+			initial_window_size: Some(egui::vec2(450.0, 4750.0)),
 			..Default::default()
 		},
 	)
@@ -166,7 +166,7 @@ impl Default for App {
 }
 impl epi::App for App {
 	fn name(&self) -> &str {
-		"Brogamers Launcher"
+		"launcher-egui`"
 	}
 
 	fn setup(
