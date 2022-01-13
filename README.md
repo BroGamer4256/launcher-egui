@@ -1,8 +1,8 @@
 ### What is this
 
-This project is an attempt to create a simple and easily modifiable replacement for the launcher from [PD-Loader](https://github.com/PDModdingCommunity/PD-Loader) built on egui
+This project is an attempt to create a simple and easily modifiable replacement for the launcher from [PD-Loader](https://github.com/PDModdingCommunity/PD-Loader)
 
-This was based off the 2.6.5a release and the config options are based on that, over versions may be broken, use at your own risk
+This was based off the 2.6.5a release and the config options are based on that, other versions may be broken, use at your own risk
 
 ### How do I use it
 

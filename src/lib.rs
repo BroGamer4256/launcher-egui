@@ -11,7 +11,7 @@ extern "system" fn DllMain(_: u32, reason: u32, _: *const u8) -> u32 {
 			return 1;
 		}
 	}
-	
+
 	unsafe {
 		let diva_main_ptr: FnMain = std::mem::transmute(0x140194D90 as *const ());
 
