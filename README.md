@@ -6,6 +6,6 @@ This was based off the 2.6.5a release and the config options are based on that, 
 
 ### How do I use it
 
-Download a build from either [releases](https://github.com/BroGamer4256/launcher-egui/release) or [github actions](https://github.com/BroGamer4256/launcher-egui/actions) then put launcher_egui.dva in plugins
+Download a build from either [releases](https://github.com/BroGamer4256/launcher-egui/releases) or [github actions](https://github.com/BroGamer4256/launcher-egui/actions) then put launcher_egui.dva in plugins
 
 You are expected to already have PD-Loader installed, this may not work otherwise
