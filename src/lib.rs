@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use detour::static_detour;
 use eframe::{egui, epi};
 
@@ -42,18 +44,97 @@ fn hooked_main(_: i32, _: *const *const i8, _: *const *const i8) -> i32 {
 	)
 }
 
-pub type DisplayFormat = u32;
-pub const WINDOWED: DisplayFormat = 0;
-pub const POPUP: DisplayFormat = 1;
-pub const EXCLUSIVE: DisplayFormat = 2;
-pub const BORDERLESS: DisplayFormat = 3;
+#[repr(u32)] // is this needed?
+#[derive(Debug, PartialEq, Eq)]
+pub enum DisplayFormat {
+	Windowed,
+	Popup,
+	Exclusive,
+	Borderless,
+}
 
-pub type StatusIcons = u32;
-pub const DEFAULT: StatusIcons = 0;
-pub const HIDDEN: StatusIcons = 1;
-pub const ERROR: StatusIcons = 2;
-pub const OK: StatusIcons = 3;
-pub const PARTIALOK: StatusIcons = 4;
+impl DisplayFormat {
+	//TODO: find a better way to do this
+	const fn from_u8(val: u8) -> Option<Self> {
+		const WINDOWED: u8 = DisplayFormat::Windowed as u8;
+		const POPUP: u8 = DisplayFormat::Popup as u8;
+		const EXCLUSIVE: u8 = DisplayFormat::Exclusive as u8;
+		const BORDERLESS: u8 = DisplayFormat::Borderless as u8;
+		match val {
+			WINDOWED => Some(Self::Windowed),
+			POPUP => Some(Self::Popup),
+			EXCLUSIVE => Some(Self::Exclusive),
+			BORDERLESS => Some(Self::Borderless),
+			_ => None,
+		}
+	}
+}
+
+impl Default for DisplayFormat {
+	fn default() -> Self {
+		Self::Windowed
+	}
+}
+
+impl Display for DisplayFormat {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let val = match self {
+			DisplayFormat::Windowed => "Windowed",
+			DisplayFormat::Popup => "Popup",
+			DisplayFormat::Exclusive => "Exclusive Fullscreen",
+			DisplayFormat::Borderless => "Borderless",
+		};
+		f.write_str(val)
+	}
+}
+
+#[repr(u32)] // is this needed?
+#[derive(Debug, PartialEq, Eq)]
+pub enum StatusIcons {
+	Default,
+	Hidden,
+	Error,
+	Ok,
+	PartialOk,
+}
+
+impl StatusIcons {
+	//TODO: find a better way to do this
+	const fn from_u8(val: u8) -> Option<Self> {
+		const DEFAULT: u8 = StatusIcons::Default as u8;
+		const HIDDEN: u8 = StatusIcons::Hidden as u8;
+		const ERROR: u8 = StatusIcons::Error as u8;
+		const OK: u8 = StatusIcons::Ok as u8;
+		const PARTIALOK: u8 = StatusIcons::PartialOk as u8;
+		match val {
+			DEFAULT => Some(Self::Default),
+			HIDDEN => Some(Self::Hidden),
+			ERROR => Some(Self::Error),
+			OK => Some(Self::Ok),
+			PARTIALOK => Some(Self::PartialOk),
+			_ => None,
+		}
+	}
+}
+
+impl Default for StatusIcons {
+	fn default() -> Self {
+		Self::Default
+	}
+}
+
+impl Display for StatusIcons {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let val = match self {
+			StatusIcons::Default => "Default",
+			StatusIcons::Hidden => "Hidden",
+			StatusIcons::Error => "Error",
+			StatusIcons::Ok => "Ok",
+			StatusIcons::PartialOk => "Partial Ok",
+		};
+		f.write_str(val)
+	}
+}
 
 pub struct App {
 	current_tab: &'static str,
@@ -114,7 +195,7 @@ impl Default for App {
 		App {
 			current_tab: "video",
 
-			display_format: WINDOWED,
+			display_format: DisplayFormat::default(),
 			window_size_x: -1,
 			window_size_y: -1,
 			internal_resolution_enabled: true,
@@ -140,7 +221,7 @@ impl Default for App {
 			disable_volume_buttons: true,
 			disable_photo_ui: true,
 			disable_watermark: true,
-			status_icons: DEFAULT,
+			status_icons: StatusIcons::default(),
 			disable_lyrics: false,
 			disable_error_banner: true,
 			disable_credits_text: true,
@@ -194,7 +275,10 @@ impl epi::App for App {
 		let config_ini = ini::Ini::load_from_file("plugins/config.ini").unwrap();
 
 		let resolution_section = config_ini.section(Some("Resolution")).unwrap();
-		self.display_format = get_ini_value::<u32>(resolution_section, "Display");
+		//TODO: handle the error case
+		self.display_format =
+			DisplayFormat::from_u8(get_ini_value::<u8>(resolution_section, "Display"))
+				.expect("valid display format");
 		self.window_size_x = get_ini_value(resolution_section, "Width");
 		self.window_size_y = get_ini_value(resolution_section, "Height");
 		self.internal_resolution_enabled = get_ini_value(resolution_section, "r.Enable");
@@ -221,7 +305,9 @@ impl epi::App for App {
 		self.disable_volume_buttons = get_ini_value(patches_section, "Hide_Volume");
 		self.disable_photo_ui = get_ini_value(patches_section, "No_PV_UI");
 		self.disable_watermark = get_ini_value(patches_section, "Hide_PV_Watermark");
-		self.status_icons = get_ini_value(patches_section, "Status_Icons");
+		//TODO: handle the error case
+		self.status_icons = StatusIcons::from_u8(get_ini_value(patches_section, "Status_Icons"))
+			.expect("valid status icons value");
 		self.disable_lyrics = get_ini_value(patches_section, "No_Lyrics");
 		self.disable_error_banner = get_ini_value(patches_section, "No_Error");
 		self.disable_credits_text = get_ini_value(patches_section, "Hide_Freeplay");
@@ -411,29 +497,22 @@ impl epi::App for App {
 
 impl App {
 	fn draw_video_tab(&mut self, ui: &mut egui::Ui) {
+		const VARIANTS: [DisplayFormat; 4] = [
+			DisplayFormat::Windowed,
+			DisplayFormat::Popup,
+			DisplayFormat::Exclusive,
+			DisplayFormat::Borderless,
+		];
 		ui.horizontal(|ui| {
 			ui.label("Display type");
 			egui::ComboBox::from_label("")
-				.selected_text(format!(
-					"{}",
-					match self.display_format {
-						WINDOWED => "Windowed",
-						POPUP => "Popup",
-						EXCLUSIVE => "Exclusive Fullscreen",
-						BORDERLESS => "Borderless",
-						_ => "Unknown",
-					}
-				))
+				.selected_text(self.display_format.to_string())
 				.width(ui.available_width() / 4.0)
 				.show_ui(ui, |ui| {
-					ui.selectable_value(&mut self.display_format, WINDOWED, "Windowed");
-					ui.selectable_value(&mut self.display_format, POPUP, "Popup");
-					ui.selectable_value(
-						&mut self.display_format,
-						EXCLUSIVE,
-						"Exclusive Fullscreen",
-					);
-					ui.selectable_value(&mut self.display_format, BORDERLESS, "Borderless");
+					for variant in VARIANTS {
+						let display = variant.to_string();
+						ui.selectable_value(&mut self.display_format, variant, display);
+					}
 				});
 		});
 
@@ -540,27 +619,23 @@ impl App {
 	}
 
 	fn draw_ui_tab(&mut self, ui: &mut egui::Ui) {
+		const VARIANTS: [StatusIcons; 5] = [
+			StatusIcons::Default,
+			StatusIcons::Hidden,
+			StatusIcons::Error,
+			StatusIcons::Ok,
+			StatusIcons::PartialOk,
+		];
 		ui.horizontal(|ui| {
 			ui.label("Status icons");
 			egui::ComboBox::from_label("")
-				.selected_text(format!(
-					"{}",
-					match self.status_icons {
-						DEFAULT => "Default",
-						ERROR => "Error",
-						OK => "Ok",
-						PARTIALOK => "Partial ok",
-						HIDDEN => "Hidden",
-						_ => "Unknown",
-					}
-				))
+				.selected_text(self.status_icons.to_string())
 				.width(ui.available_width() / 4.0)
 				.show_ui(ui, |ui| {
-					ui.selectable_value(&mut self.status_icons, DEFAULT, "Default");
-					ui.selectable_value(&mut self.status_icons, ERROR, "Error");
-					ui.selectable_value(&mut self.status_icons, OK, "Ok");
-					ui.selectable_value(&mut self.status_icons, PARTIALOK, "Partial Ok");
-					ui.selectable_value(&mut self.status_icons, HIDDEN, "Hidden");
+					for variant in VARIANTS {
+						let display = variant.to_string();
+						ui.selectable_value(&mut self.status_icons, variant, display);
+					}
 				});
 		});
 
