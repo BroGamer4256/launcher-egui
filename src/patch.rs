@@ -1,21 +1,21 @@
 use crate::{get_ini_value, IniConfig, IniConfigWrite, StatusIcons};
 
 pub struct AppPatches {
-	disable_movies: bool,
-	show_cursor: bool,
+	pub(crate) disable_movies: bool,
+	pub(crate) show_cursor: bool,
 	pub(crate) disable_slider_emu: bool,
-	stage_count: i32,
-	disable_volume_buttons: bool,
-	disable_photo_ui: bool,
-	disable_watermark: bool,
-	status_icons: StatusIcons,
-	disable_lyrics: bool,
-	disable_error_banner: bool,
-	disable_credits_text: bool,
-	show_pdloader_text: bool,
-	disable_credits: bool,
+	pub(crate) stage_count: i32,
+	pub(crate) disable_volume_buttons: bool,
+	pub(crate) disable_photo_ui: bool,
+	pub(crate) disable_watermark: bool,
+	pub(crate) status_icons: StatusIcons,
+	pub(crate) disable_lyrics: bool,
+	pub(crate) disable_error_banner: bool,
+	pub(crate) disable_credits_text: bool,
+	pub(crate) show_pdloader_text: bool,
+	pub(crate) disable_credits: bool,
 	pub(crate) disable_selection_timer: bool,
-	disable_timer_sprite: bool,
+	pub(crate) disable_timer_sprite: bool,
 }
 
 impl IniConfig for AppPatches {

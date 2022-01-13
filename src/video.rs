@@ -1,17 +1,19 @@
+use eframe::{egui, epi};
 use ini::{Ini, Properties, SectionSetter};
 
+use crate::utils::DrawUi;
 use crate::{
-	get_ini_value, graphics::AppGraphics, DisplayFormat, IniConfig, IniConfigWrite,
-	IniConfigWriteCtx,
+	get_ini_value, graphics::AppGraphics, int_text_box, simple_checkbox, DisplayFormat, IniConfig,
+	IniConfigWrite, IniConfigWriteCtx,
 };
 
 pub struct AppVideo {
-	display_format: DisplayFormat,
-	window_size_x: i32,
-	window_size_y: i32,
-	internal_resolution_enabled: bool,
-	internal_resolution_x: i32,
-	internal_resolution_y: i32,
+	pub(crate) display_format: DisplayFormat,
+	pub(crate) window_size_x: i32,
+	pub(crate) window_size_y: i32,
+	pub(crate) internal_resolution_enabled: bool,
+	pub(crate) internal_resolution_x: i32,
+	pub(crate) internal_resolution_y: i32,
 }
 
 impl IniConfig for AppVideo {
@@ -57,6 +59,46 @@ impl IniConfigWriteCtx for AppVideo {
 
 	fn write_additional<'a, 'b>(add: &'a Self::Context, section: &'b mut SectionSetter<'b>) {
 		section.set("RefreshRate", add.frame_rate.to_string());
+	}
+}
+
+impl DrawUi for AppVideo {
+	fn draw(&mut self, ui: &mut eframe::egui::Ui) {
+		const VARIANTS: [DisplayFormat; 4] = [
+			DisplayFormat::Windowed,
+			DisplayFormat::Popup,
+			DisplayFormat::Exclusive,
+			DisplayFormat::Borderless,
+		];
+		ui.horizontal(|ui| {
+			ui.label("Display type");
+			egui::ComboBox::from_label("")
+				.selected_text(self.display_format.to_string())
+				.width(ui.available_width() / 4.0)
+				.show_ui(ui, |ui| {
+					for variant in VARIANTS {
+						let display = variant.to_string();
+						ui.selectable_value(&mut self.display_format, variant, display);
+					}
+				});
+		});
+
+		ui.horizontal(|ui| {
+			ui.add(egui::Label::new("Window Size"))
+				.on_hover_text("-1 in both means to match the size of the screen");
+
+			int_text_box(&mut self.window_size_x, 2.0, ui);
+			int_text_box(&mut self.window_size_y, 1.0, ui);
+		});
+
+		ui.horizontal(|ui| {
+			ui.add(egui::Label::new("Internal Resolution"))
+				.on_hover_text("-1 in both means to match the size of the window");
+			ui.checkbox(&mut self.internal_resolution_enabled, "");
+
+			int_text_box(&mut self.internal_resolution_x, 2.0, ui);
+			int_text_box(&mut self.internal_resolution_y, 1.0, ui);
+		});
 	}
 }
 

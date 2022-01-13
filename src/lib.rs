@@ -1,13 +1,18 @@
 pub mod components;
 pub mod graphics;
 pub mod patch;
+mod utils;
 pub mod video;
 
 use std::fmt::Display;
 
+use components::AppComponents;
 use detour::static_detour;
 use eframe::{egui, epi};
+use graphics::AppGraphics;
 use ini::{Ini, Properties, SectionSetter};
+use patch::AppPatches;
+use video::AppVideo;
 
 #[no_mangle]
 extern "system" fn DllMain(_: u32, reason: u32, _: *const u8) -> u32 {
@@ -176,115 +181,16 @@ impl Display for StatusIcons {
 	}
 }
 
+#[derive(Default)]
 pub struct App {
 	current_tab: &'static str,
 
-	// Resolution
-	display_format: DisplayFormat,
-	window_size_x: i32,
-	window_size_y: i32,
-	internal_resolution_enabled: bool,
-	internal_resolution_x: i32,
-	internal_resolution_y: i32,
-
-	// Graphics
-	taa_enabled: bool,
-	mlaa_enabled: bool,
-	glare_enabled: bool,
-	depth_of_field_enabled: bool,
-	frame_rate: i32,
-	gamma: i32,
-	reflections_enabled: bool,
-	shadows_enabled: bool,
-	transparency_enabled: bool,
-	disable_3d: bool,
-
-	// Patches
-	disable_movies: bool,
-	show_cursor: bool,
-	disable_slider_emu: bool,
-	stage_count: i32,
-	disable_volume_buttons: bool,
-	disable_photo_ui: bool,
-	disable_watermark: bool,
-	status_icons: StatusIcons,
-	disable_lyrics: bool,
-	disable_error_banner: bool,
-	disable_credits_text: bool,
-	show_pdloader_text: bool,
-	disable_credits: bool,
-	disable_selection_timer: bool,
-	disable_timer_sprite: bool,
-
-	// components
-	enable_input_emulator: bool,
-	enable_touch_emulator: bool,
-	enable_player_data_manager: bool,
-	enable_frame_rate_manager: bool,
-	enable_fast_loader: bool,
-	fast_loader_speed: i32,
-	enable_camera_controller: bool,
-	enable_scaling: bool,
-	enable_dwgui: bool,
-	enable_hold_transfer: bool,
-	enable_score_saving: bool,
-	enable_pausing: bool,
+	video: AppVideo,
+	graphics: AppGraphics,
+	patches: AppPatches,
+	components: AppComponents,
 }
-impl Default for App {
-	fn default() -> Self {
-		App {
-			current_tab: "video",
 
-			display_format: DisplayFormat::default(),
-			window_size_x: -1,
-			window_size_y: -1,
-			internal_resolution_enabled: true,
-			internal_resolution_x: 1920,
-			internal_resolution_y: 1080,
-
-			taa_enabled: false,
-			mlaa_enabled: true,
-			glare_enabled: false,
-			depth_of_field_enabled: true,
-			frame_rate: 60,
-			gamma: 100,
-			reflections_enabled: true,
-			shadows_enabled: true,
-			transparency_enabled: true,
-			disable_3d: false,
-
-			disable_movies: false,
-			show_cursor: false,
-			disable_slider_emu: false,
-			stage_count: 0,
-
-			disable_volume_buttons: true,
-			disable_photo_ui: true,
-			disable_watermark: true,
-			status_icons: StatusIcons::default(),
-			disable_lyrics: false,
-			disable_error_banner: true,
-			disable_credits_text: true,
-			show_pdloader_text: true,
-			disable_credits: true,
-			disable_selection_timer: true,
-			disable_timer_sprite: true,
-
-			enable_input_emulator: true,
-			enable_touch_emulator: true,
-			enable_player_data_manager: true,
-			enable_frame_rate_manager: true,
-			enable_fast_loader: true,
-			fast_loader_speed: 39,
-			enable_camera_controller: true,
-			enable_scaling: true,
-			enable_dwgui: true,
-			enable_hold_transfer: true,
-			enable_score_saving: true,
-			enable_pausing: true,
-		}
-	}
-}
 impl epi::App for App {
 	fn name(&self) -> &str {
 		"launcher-egui`"
@@ -315,61 +221,12 @@ impl epi::App for App {
 		let config_ini = ini::Ini::load_from_file("plugins/config.ini").unwrap();
 
 		let resolution_section = config_ini.section(Some("Resolution")).unwrap();
-		//TODO: handle the error case
-		self.display_format =
-			DisplayFormat::from_u8(get_ini_value::<u8>(resolution_section, "Display"))
-				.expect("valid display format");
-		self.window_size_x = get_ini_value(resolution_section, "Width");
-		self.window_size_y = get_ini_value(resolution_section, "Height");
-		self.internal_resolution_enabled = get_ini_value(resolution_section, "r.Enable");
-		self.internal_resolution_x = get_ini_value(resolution_section, "r.Width");
-		self.internal_resolution_y = get_ini_value(resolution_section, "r.Height");
-
-		let graphics_section = config_ini.section(Some("Graphics")).unwrap();
-		self.taa_enabled = get_ini_value(graphics_section, "TAA");
-		self.mlaa_enabled = get_ini_value(graphics_section, "MLAA");
-		self.glare_enabled = get_ini_value(graphics_section, "Glare");
-		self.depth_of_field_enabled = get_ini_value(graphics_section, "DOF");
-		self.frame_rate = get_ini_value(graphics_section, "FPS.Limit");
-		self.gamma = get_ini_value(graphics_section, "Gamma");
-		self.reflections_enabled = get_ini_value(graphics_section, "Reflections");
-		self.shadows_enabled = get_ini_value(graphics_section, "Shadows");
-		self.transparency_enabled = get_ini_value(graphics_section, "Punchthrough");
-		self.disable_3d = get_ini_value(graphics_section, "2D");
-
-		let patches_section = config_ini.section(Some("Patches")).unwrap();
-		self.disable_movies = get_ini_value(patches_section, "No_Movies");
-		self.show_cursor = get_ini_value(patches_section, "Cursor");
-		self.disable_slider_emu = get_ini_value(patches_section, "Hardware_Slider");
-		self.stage_count = get_ini_value(patches_section, "Enhanced_Stage_Manager");
-		self.disable_volume_buttons = get_ini_value(patches_section, "Hide_Volume");
-		self.disable_photo_ui = get_ini_value(patches_section, "No_PV_UI");
-		self.disable_watermark = get_ini_value(patches_section, "Hide_PV_Watermark");
-		//TODO: handle the error case
-		self.status_icons = StatusIcons::from_u8(get_ini_value(patches_section, "Status_Icons"))
-			.expect("valid status icons value");
-		self.disable_lyrics = get_ini_value(patches_section, "No_Lyrics");
-		self.disable_error_banner = get_ini_value(patches_section, "No_Error");
-		self.disable_credits_text = get_ini_value(patches_section, "Hide_Freeplay");
-		self.show_pdloader_text = get_ini_value(patches_section, "PDLoaderText");
-		self.disable_credits = get_ini_value(patches_section, "Freeplay");
-		self.disable_selection_timer = get_ini_value(patches_section, "No_Timer");
-		self.disable_timer_sprite = get_ini_value(patches_section, "No_Timer_Sprite");
+		self.video = AppVideo::read(&config_ini).unwrap().unwrap();
+		self.graphics = AppGraphics::read(&config_ini).unwrap().unwrap();
+		self.patches = AppPatches::read(&config_ini).unwrap().unwrap();
 
 		let components_ini = ini::Ini::load_from_file("plugins/components.ini").unwrap();
-		let components_section = components_ini.section(Some("components")).unwrap();
-		self.enable_input_emulator = get_ini_value(components_section, "input_emulator");
-		self.enable_touch_emulator = get_ini_value(components_section, "touch_panel_emulator");
-		self.enable_player_data_manager = get_ini_value(components_section, "player_data_manager");
-		self.enable_frame_rate_manager = get_ini_value(components_section, "frame_rate_manager");
-		self.enable_fast_loader = get_ini_value(components_section, "fast_loader");
-		self.fast_loader_speed = get_ini_value(components_section, "fast_loader_speed");
-		self.enable_camera_controller = get_ini_value(components_section, "camera_controller");
-		self.enable_scaling = get_ini_value(components_section, "scale_component");
-		self.enable_dwgui = get_ini_value(components_section, "debug_component");
-		self.enable_hold_transfer = get_ini_value(components_section, "target_inspector");
-		self.enable_score_saving = get_ini_value(components_section, "score_saver");
-		self.enable_pausing = get_ini_value(components_section, "pause");
+		self.components = AppComponents::read(&components_ini).unwrap().unwrap();
 	}
 
 	fn on_exit(&mut self) {
@@ -379,70 +236,9 @@ impl epi::App for App {
 			ini::Ini::new()
 		};
 
-		config_ini
-			.with_section(Some("Resolution"))
-			.set("Display", self.display_format.to_string())
-			.set("Width", self.window_size_x.to_string())
-			.set("Height", self.window_size_y.to_string())
-			.set(
-				"r.Enable",
-				(self.internal_resolution_enabled as i32).to_string(),
-			)
-			.set("r.Width", self.internal_resolution_x.to_string())
-			.set("r.Height", self.internal_resolution_y.to_string())
-			.set("RefreshRate", self.frame_rate.to_string());
-
-		config_ini
-			.with_section(Some("Graphics"))
-			.set("TAA", (self.taa_enabled as i32).to_string())
-			.set("MLAA", (self.mlaa_enabled as i32).to_string())
-			.set("Glare", (self.glare_enabled as i32).to_string())
-			.set("DOF", (self.depth_of_field_enabled as i32).to_string())
-			.set("FPS.Limit", self.frame_rate.to_string())
-			.set("Gamma", self.gamma.to_string())
-			.set("Reflections", (self.reflections_enabled as i32).to_string())
-			.set("Shadows", (self.shadows_enabled as i32).to_string())
-			.set(
-				"Punchthrough",
-				(self.transparency_enabled as i32).to_string(),
-			)
-			.set("2D", (self.disable_3d as i32).to_string());
-
-		config_ini
-			.with_section(Some("Patches"))
-			.set("No_Movies", (self.disable_movies as i32).to_string())
-			.set("Cursor", (self.show_cursor as i32).to_string())
-			.set(
-				"Hardware_Slider",
-				(self.disable_slider_emu as i32).to_string(),
-			)
-			.set("Enhanced_Stage_Manager", self.stage_count.to_string())
-			.set(
-				"Hide_Volume",
-				(self.disable_volume_buttons as i32).to_string(),
-			)
-			.set("No_PV_UI", (self.disable_photo_ui as i32).to_string())
-			.set(
-				"Hide_PV_Watermark",
-				(self.disable_watermark as i32).to_string(),
-			)
-			.set("Status_Icons", self.status_icons.to_string())
-			.set("No_Lyrics", (self.disable_lyrics as i32).to_string())
-			.set("No_Error", (self.disable_error_banner as i32).to_string())
-			.set(
-				"Hide_Freeplay",
-				(self.disable_credits_text as i32).to_string(),
-			)
-			.set("PDLoaderText", (self.show_pdloader_text as i32).to_string())
-			.set("Freeplay", (self.disable_credits as i32).to_string())
-			.set(
-				"No_Timer",
-				(self.disable_selection_timer as i32).to_string(),
-			)
-			.set(
-				"No_Timer_Sprite",
-				(self.disable_timer_sprite as i32).to_string(),
-			);
+		self.video.write(&self.graphics, &mut config_ini);
+		self.graphics.write(&mut config_ini);
+		self.patches.write(&mut config_ini);
 
 		config_ini.write_to_file("plugins/config.ini").unwrap();
 
@@ -452,36 +248,7 @@ impl epi::App for App {
 			ini::Ini::new()
 		};
 
-		components_ini
-			.with_section(Some("components"))
-			.set(
-				"touch_slider_emulator",
-				(!self.disable_slider_emu).to_string(),
-			)
-			.set("sys_timer", self.disable_selection_timer.to_string())
-			.set("input_emulator", self.enable_input_emulator.to_string())
-			.set(
-				"touch_panel_emulator",
-				self.enable_touch_emulator.to_string(),
-			)
-			.set(
-				"player_data_manager",
-				self.enable_player_data_manager.to_string(),
-			)
-			.set(
-				"frame_rate_manager",
-				self.enable_frame_rate_manager.to_string(),
-			)
-			.set("fast_loader", self.enable_fast_loader.to_string())
-			.set("fast_loader_speed", self.fast_loader_speed.to_string())
-			.set(
-				"camera_controller",
-				self.enable_camera_controller.to_string(),
-			)
-			.set("scale_component", self.enable_scaling.to_string())
-			.set("debug_component", self.enable_dwgui.to_string())
-			.set("target_inspector", self.enable_score_saving.to_string())
-			.set("pause", self.enable_pausing.to_string());
+		self.components.write(&self.patches, &mut components_ini);
 
 		components_ini
 			.write_to_file("plugins/components.ini")
@@ -546,12 +313,12 @@ impl App {
 		ui.horizontal(|ui| {
 			ui.label("Display type");
 			egui::ComboBox::from_label("")
-				.selected_text(self.display_format.to_string())
+				.selected_text(self.video.display_format.to_string())
 				.width(ui.available_width() / 4.0)
 				.show_ui(ui, |ui| {
 					for variant in VARIANTS {
 						let display = variant.to_string();
-						ui.selectable_value(&mut self.display_format, variant, display);
+						ui.selectable_value(&mut self.video.display_format, variant, display);
 					}
 				});
 		});
@@ -560,100 +327,123 @@ impl App {
 			ui.add(egui::Label::new("Window Size"))
 				.on_hover_text("-1 in both means to match the size of the screen");
 
-			int_text_box(&mut self.window_size_x, 2.0, ui);
-			int_text_box(&mut self.window_size_y, 1.0, ui);
+			int_text_box(&mut self.video.window_size_x, 2.0, ui);
+			int_text_box(&mut self.video.window_size_y, 1.0, ui);
 		});
 
 		ui.horizontal(|ui| {
 			ui.add(egui::Label::new("Internal Resolution"))
 				.on_hover_text("-1 in both means to match the size of the window");
-			ui.checkbox(&mut self.internal_resolution_enabled, "");
+			ui.checkbox(&mut self.video.internal_resolution_enabled, "");
 
-			int_text_box(&mut self.internal_resolution_x, 2.0, ui);
-			int_text_box(&mut self.internal_resolution_y, 1.0, ui);
+			int_text_box(&mut self.video.internal_resolution_x, 2.0, ui);
+			int_text_box(&mut self.video.internal_resolution_y, 1.0, ui);
 		});
 
 		ui.horizontal(|ui| {
 			ui.add(egui::Label::new("Frame rate limit"))
 				.on_hover_text("-1 to unlock the frame rate");
 
-			int_text_box(&mut self.frame_rate, 2.0, ui);
+			int_text_box(&mut self.graphics.frame_rate, 2.0, ui);
 		});
 
-		simple_checkbox("Motion Blur", &mut self.taa_enabled, ui);
-		simple_checkbox("MLAA", &mut self.mlaa_enabled, ui);
-		simple_checkbox("Glare", &mut self.glare_enabled, ui);
-		simple_checkbox("Depth of Field", &mut self.depth_of_field_enabled, ui);
-		simple_checkbox("Reflections", &mut self.reflections_enabled, ui);
-		simple_checkbox("Shadows", &mut self.shadows_enabled, ui);
-		simple_checkbox("Transparency", &mut self.transparency_enabled, ui);
-		simple_checkbox("Disable 3D", &mut self.disable_3d, ui);
-		simple_checkbox("Window scaling", &mut self.enable_scaling, ui);
+		simple_checkbox("Motion Blur", &mut self.graphics.taa_enabled, ui);
+		simple_checkbox("MLAA", &mut self.graphics.mlaa_enabled, ui);
+		simple_checkbox("Glare", &mut self.graphics.glare_enabled, ui);
+		simple_checkbox(
+			"Depth of Field",
+			&mut self.graphics.depth_of_field_enabled,
+			ui,
+		);
+		simple_checkbox("Reflections", &mut self.graphics.reflections_enabled, ui);
+		simple_checkbox("Shadows", &mut self.graphics.shadows_enabled, ui);
+		simple_checkbox("Transparency", &mut self.graphics.transparency_enabled, ui);
+		simple_checkbox("Disable 3D", &mut self.graphics.disable_3d, ui);
+		simple_checkbox("Window scaling", &mut self.components.enable_scaling, ui);
 
 		ui.horizontal(|ui| {
 			ui.label("Gamma");
-			ui.add(egui::Slider::new(&mut self.gamma, 0..=200));
+			ui.add(egui::Slider::new(&mut self.graphics.gamma, 0..=200));
 		});
 	}
 
 	fn draw_patches_tab(&mut self, ui: &mut egui::Ui) {
-		simple_checkbox("Disable Movies", &mut self.disable_movies, ui);
-		simple_checkbox("Show Cursor", &mut self.show_cursor, ui);
+		simple_checkbox("Disable Movies", &mut self.patches.disable_movies, ui);
+		simple_checkbox("Show Cursor", &mut self.patches.show_cursor, ui);
 		simple_checkbox_tooltip(
 			"Disable Slider Emulation",
 			"Must be checked if using a hardware slider",
-			&mut self.disable_slider_emu,
+			&mut self.patches.disable_slider_emu,
 			ui,
 		);
 
 		// should these really be separate?
 		// would anyone want touch emulation without input emulation or vice versa?
-		simple_checkbox("Input Emulation", &mut self.enable_input_emulator, ui);
-		simple_checkbox("Touch Emulation", &mut self.enable_touch_emulator, ui);
+		simple_checkbox(
+			"Input Emulation",
+			&mut self.components.enable_input_emulator,
+			ui,
+		);
+		simple_checkbox(
+			"Touch Emulation",
+			&mut self.components.enable_touch_emulator,
+			ui,
+		);
 
-		simple_checkbox("Disable credits check", &mut self.disable_credits, ui);
+		simple_checkbox(
+			"Disable credits check",
+			&mut self.patches.disable_credits,
+			ui,
+		);
 		simple_checkbox(
 			"Disable selection timer",
-			&mut self.disable_selection_timer,
+			&mut self.patches.disable_selection_timer,
 			ui,
 		);
 		ui.horizontal(|ui| {
 			ui.add(egui::Label::new("Number of stages"))
 				.on_hover_text("Set to 0 if using online");
-			int_text_box(&mut self.stage_count, 5.0, ui);
+			int_text_box(&mut self.patches.stage_count, 5.0, ui);
 		});
 
 		ui.horizontal(|ui| {
 			ui.add(egui::Label::new("Fast Loader"))
 				.on_hover_text("Set to 3 or lower when using online");
-			ui.checkbox(&mut self.enable_fast_loader, "");
-			ui.add(egui::Slider::new(&mut self.fast_loader_speed, 0..=100));
+			ui.checkbox(&mut self.components.enable_fast_loader, "");
+			ui.add(egui::Slider::new(
+				&mut self.components.fast_loader_speed,
+				0..=100,
+			));
 		});
 
 		simple_checkbox(
 			"Custom player data",
-			&mut self.enable_player_data_manager,
+			&mut self.components.enable_player_data_manager,
 			ui,
 		);
 		simple_checkbox_tooltip(
 			"Frame Rate Manager",
 			"Speeds up animations to match the frame rate\nStops certain sounds from playing",
-			&mut self.enable_frame_rate_manager,
+			&mut self.components.enable_frame_rate_manager,
 			ui,
 		);
 		simple_checkbox_tooltip(
 			"Camera Controller",
 			"Press F3 to activate",
-			&mut self.enable_camera_controller,
+			&mut self.components.enable_camera_controller,
 			ui,
 		);
-		simple_checkbox("Enable debug menus", &mut self.enable_dwgui, ui);
-		simple_checkbox("Hold transfers", &mut self.enable_hold_transfer, ui);
-		simple_checkbox("Score saving", &mut self.enable_score_saving, ui);
+		simple_checkbox("Enable debug menus", &mut self.components.enable_dwgui, ui);
+		simple_checkbox(
+			"Hold transfers",
+			&mut self.components.enable_hold_transfer,
+			ui,
+		);
+		simple_checkbox("Score saving", &mut self.components.enable_score_saving, ui);
 		simple_checkbox_tooltip(
 			"Pause menu",
 			"Entered by pressing JVS_START\nStart on controller or Enter on keyboard by default",
-			&mut self.enable_pausing,
+			&mut self.components.enable_pausing,
 			ui,
 		);
 	}
@@ -669,28 +459,44 @@ impl App {
 		ui.horizontal(|ui| {
 			ui.label("Status icons");
 			egui::ComboBox::from_label("")
-				.selected_text(self.status_icons.to_string())
+				.selected_text(self.patches.status_icons.to_string())
 				.width(ui.available_width() / 4.0)
 				.show_ui(ui, |ui| {
 					for variant in VARIANTS {
 						let display = variant.to_string();
-						ui.selectable_value(&mut self.status_icons, variant, display);
+						ui.selectable_value(&mut self.patches.status_icons, variant, display);
 					}
 				});
 		});
 
-		simple_checkbox("Hide Volume Buttons", &mut self.disable_volume_buttons, ui);
-		simple_checkbox("Hide PV Photo UI", &mut self.disable_photo_ui, ui);
-		simple_checkbox("Hide PV Watermark", &mut self.disable_watermark, ui);
-		simple_checkbox("Hide Lyrics", &mut self.disable_lyrics, ui);
-		simple_checkbox("Hide Error banner", &mut self.disable_error_banner, ui);
-		simple_checkbox("Hide CREDITS text", &mut self.disable_credits_text, ui);
 		simple_checkbox(
-			"Swap CREDITS text with PD LOADER",
-			&mut self.show_pdloader_text,
+			"Hide Volume Buttons",
+			&mut self.patches.disable_volume_buttons,
 			ui,
 		);
-		simple_checkbox("Hide Selection timer", &mut self.disable_timer_sprite, ui);
+		simple_checkbox("Hide PV Photo UI", &mut self.patches.disable_photo_ui, ui);
+		simple_checkbox("Hide PV Watermark", &mut self.patches.disable_watermark, ui);
+		simple_checkbox("Hide Lyrics", &mut self.patches.disable_lyrics, ui);
+		simple_checkbox(
+			"Hide Error banner",
+			&mut self.patches.disable_error_banner,
+			ui,
+		);
+		simple_checkbox(
+			"Hide CREDITS text",
+			&mut self.patches.disable_credits_text,
+			ui,
+		);
+		simple_checkbox(
+			"Swap CREDITS text with PD LOADER",
+			&mut self.patches.show_pdloader_text,
+			ui,
+		);
+		simple_checkbox(
+			"Hide Selection timer",
+			&mut self.patches.disable_timer_sprite,
+			ui,
+		);
 	}
 }
 

@@ -1,18 +1,18 @@
 use crate::{get_ini_value, patch::AppPatches, IniConfig, IniConfigWriteCtx};
 
 pub struct AppComponents {
-	enable_input_emulator: bool,
-	enable_touch_emulator: bool,
-	enable_player_data_manager: bool,
-	enable_frame_rate_manager: bool,
-	enable_fast_loader: bool,
-	fast_loader_speed: i32,
-	enable_camera_controller: bool,
-	enable_scaling: bool,
-	enable_dwgui: bool,
-	enable_hold_transfer: bool,
-	enable_score_saving: bool,
-	enable_pausing: bool,
+	pub(crate) enable_input_emulator: bool,
+	pub(crate) enable_touch_emulator: bool,
+	pub(crate) enable_player_data_manager: bool,
+	pub(crate) enable_frame_rate_manager: bool,
+	pub(crate) enable_fast_loader: bool,
+	pub(crate) fast_loader_speed: i32,
+	pub(crate) enable_camera_controller: bool,
+	pub(crate) enable_scaling: bool,
+	pub(crate) enable_dwgui: bool,
+	pub(crate) enable_hold_transfer: bool,
+	pub(crate) enable_score_saving: bool,
+	pub(crate) enable_pausing: bool,
 }
 
 impl IniConfig for AppComponents {

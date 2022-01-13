@@ -1,16 +1,16 @@
 use crate::{get_ini_value, IniConfig, IniConfigWrite};
 
 pub struct AppGraphics {
-	taa_enabled: bool,
-	mlaa_enabled: bool,
-	glare_enabled: bool,
-	depth_of_field_enabled: bool,
+	pub(crate) taa_enabled: bool,
+	pub(crate) mlaa_enabled: bool,
+	pub(crate) glare_enabled: bool,
+	pub(crate) depth_of_field_enabled: bool,
 	pub(crate) frame_rate: i32,
-	gamma: i32,
-	reflections_enabled: bool,
-	shadows_enabled: bool,
-	transparency_enabled: bool,
-	disable_3d: bool,
+	pub(crate) gamma: i32,
+	pub(crate) reflections_enabled: bool,
+	pub(crate) shadows_enabled: bool,
+	pub(crate) transparency_enabled: bool,
+	pub(crate) disable_3d: bool,
 }
 
 impl IniConfig for AppGraphics {
