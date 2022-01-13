@@ -1,11 +1,8 @@
 use eframe::{egui, epi};
 use ini::{Ini, Properties, SectionSetter};
 
-use crate::utils::DrawUi;
-use crate::{
-	get_ini_value, graphics::AppGraphics, int_text_box, simple_checkbox, DisplayFormat, IniConfig,
-	IniConfigWrite, IniConfigWriteCtx,
-};
+use crate::utils::*;
+use crate::{get_ini_value, graphics::AppGraphics, int_text_box, simple_checkbox, DisplayFormat};
 
 pub struct AppVideo {
 	pub(crate) display_format: DisplayFormat,

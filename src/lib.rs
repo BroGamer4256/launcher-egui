@@ -4,6 +4,8 @@ pub mod patch;
 mod utils;
 pub mod video;
 
+use utils::*;
+
 use std::fmt::Display;
 
 use components::AppComponents;
@@ -53,40 +55,6 @@ fn hooked_main(_: i32, _: *const *const i8, _: *const *const i8) -> i32 {
 			..Default::default()
 		},
 	)
-}
-
-trait IniConfig: Sized {
-	const SECTION: &'static str;
-	type Error: std::error::Error;
-
-	fn read(ini: &Ini) -> Option<Result<Self, Self::Error>> {
-		let section = ini.section(Some(Self::SECTION))?;
-		Some(Self::read_body(section))
-	}
-	fn read_body(props: &Properties) -> Result<Self, Self::Error>;
-}
-
-trait IniConfigWrite: IniConfig {
-	fn write<'a, 'b>(&'a self, ini: &'b mut Ini) {
-		let mut section = ini.with_section(Some(Self::SECTION));
-		self.write_body(&mut section);
-	}
-	fn write_body<'a, 'b>(&'a self, section: &'b mut SectionSetter<'b>);
-}
-
-trait IniConfigWriteCtx: IniConfig {
-	type Context;
-
-	fn write<'a, 'b>(&'a self, ctx: &'a Self::Context, ini: &'b mut Ini) {
-		{
-			let mut section = ini.with_section(Some(Self::SECTION));
-			self.write_body(&mut section);
-		}
-		let mut section = ini.with_section(Some(Self::SECTION));
-		Self::write_additional(ctx, &mut section);
-	}
-	fn write_body<'a, 'b>(&'a self, section: &'b mut SectionSetter<'b>);
-	fn write_additional<'a, 'b>(add: &'a Self::Context, section: &'b mut SectionSetter<'b>);
 }
 
 #[repr(u32)] // is this needed?
