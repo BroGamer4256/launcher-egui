@@ -76,7 +76,8 @@ impl IniConfigWriteCtx for AppComponents {
 			)
 			.set("scale_component", self.enable_scaling.to_string())
 			.set("debug_component", self.enable_dwgui.to_string())
-			.set("target_inspector", self.enable_score_saving.to_string())
+			.set("target_inspector", self.enable_hold_transfer.to_string())
+			.set("score_saver", self.enable_score_saving.to_string())
 			.set("pause", self.enable_pausing.to_string());
 	}
 

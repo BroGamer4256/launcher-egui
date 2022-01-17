@@ -1,8 +1,8 @@
-use eframe::{egui, epi};
-use ini::{Ini, Properties, SectionSetter};
+use eframe::egui;
+use ini::{Properties, SectionSetter};
 
 use crate::utils::*;
-use crate::{get_ini_value, graphics::AppGraphics, int_text_box, simple_checkbox, DisplayFormat};
+use crate::{get_ini_value, graphics::AppGraphics, int_text_box, DisplayFormat};
 
 pub struct AppVideo {
 	pub(crate) display_format: DisplayFormat,
@@ -43,7 +43,7 @@ impl IniConfigWriteCtx for AppVideo {
 
 	fn write_body<'a, 'b>(&'a self, section: &'b mut SectionSetter<'b>) {
 		section
-			.set("Display", self.display_format.to_string())
+			.set("Display", (self.display_format as i32).to_string())
 			.set("Width", self.window_size_x.to_string())
 			.set("Height", self.window_size_y.to_string())
 			.set(

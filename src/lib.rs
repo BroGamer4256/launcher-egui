@@ -12,7 +12,6 @@ use components::AppComponents;
 use detour::static_detour;
 use eframe::{egui, epi};
 use graphics::AppGraphics;
-use ini::{Ini, Properties, SectionSetter};
 use patch::AppPatches;
 use video::AppVideo;
 
@@ -57,8 +56,7 @@ fn hooked_main(_: i32, _: *const *const i8, _: *const *const i8) -> i32 {
 	)
 }
 
-#[repr(u32)] // is this needed?
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DisplayFormat {
 	Windowed,
 	Popup,
@@ -101,8 +99,7 @@ impl Display for DisplayFormat {
 	}
 }
 
-#[repr(u32)] // is this needed?
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StatusIcons {
 	Default,
 	Hidden,
@@ -188,7 +185,6 @@ impl epi::App for App {
 		}
 		let config_ini = ini::Ini::load_from_file("plugins/config.ini").unwrap();
 
-		let resolution_section = config_ini.section(Some("Resolution")).unwrap();
 		self.video = AppVideo::read(&config_ini).unwrap().unwrap();
 		self.graphics = AppGraphics::read(&config_ini).unwrap().unwrap();
 		self.patches = AppPatches::read(&config_ini).unwrap().unwrap();

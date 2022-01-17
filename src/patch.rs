@@ -81,7 +81,7 @@ impl IniConfigWrite for AppPatches {
 				"Hide_PV_Watermark",
 				(self.disable_watermark as i32).to_string(),
 			)
-			.set("Status_Icons", self.status_icons.to_string())
+			.set("Status_Icons", (self.status_icons as i32).to_string())
 			.set("No_Lyrics", (self.disable_lyrics as i32).to_string())
 			.set("No_Error", (self.disable_error_banner as i32).to_string())
 			.set(
