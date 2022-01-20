@@ -1,36 +1,7 @@
-use detour::static_detour;
 use eframe::{egui, epi};
 use serde::{Deserialize, Serialize};
 
-#[no_mangle]
-extern "system" fn DllMain(_: u32, reason: u32, _: *const u8) -> u32 {
-	if reason != 1 {
-		return 1;
-	}
-	for argument in std::env::args() {
-		if argument == "--launch" {
-			return 1;
-		}
-	}
-
-	unsafe {
-		let diva_main_ptr: FnMain = std::mem::transmute(0x140194D90 as *const ());
-
-		divaMain
-			.initialize(diva_main_ptr, hooked_main)
-			.unwrap()
-			.enable()
-			.unwrap();
-	}
-
-	1
-}
-
-type FnMain = unsafe extern "cdecl" fn(i32, *const *const i8, *const *const i8) -> i32;
-static_detour! {
-	static divaMain: unsafe extern "cdecl" fn(i32, *const *const i8, *const *const i8) -> i32;
-}
-fn hooked_main(_: i32, _: *const *const i8, _: *const *const i8) -> i32 {
+fn main() {
 	eframe::run_native(
 		Box::new(App {
 			current_tab: "window",
@@ -153,8 +124,12 @@ pub struct Graphics {
 	frame_rate: i32,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct App {
+	path: std::path::PathBuf,
+	#[cfg(not(target_os = "windows"))]
+	wine_prefix: std::path::PathBuf,
+	#[serde(skip)]
 	current_tab: &'static str,
 
 	config: Config,
@@ -182,16 +157,41 @@ impl epi::App for App {
 		);
 		ctx.set_fonts(fonts);
 
-		if !std::path::Path::new("plugins/config.toml").exists() {
+		if let Some(storage) = _storage {
+			*self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+		}
+
+		while !self.path.exists() && self.path.file_name().unwrap_or_default() != "diva.exe" {
+			self.path = rfd::FileDialog::new()
+				.add_filter("exe", &["exe"])
+				.set_directory(".")
+				.set_file_name("diva.exe")
+				.set_title("Select diva.exe")
+				.pick_file()
+				.unwrap_or_default();
+		}
+
+		if !std::path::Path::new(&self.path.parent().unwrap().join("plugins/config.toml")).exists()
+		{
 			return;
 		}
-		let config_str = std::fs::read_to_string("plugins/config.toml").unwrap();
+		let config_str =
+			std::fs::read_to_string(&self.path.parent().unwrap().join("plugins/config.toml"))
+				.unwrap();
 		self.config = toml::from_str(config_str.as_str()).unwrap();
+	}
+
+	fn save(&mut self, storage: &mut dyn epi::Storage) {
+		epi::set_value(storage, epi::APP_KEY, self);
 	}
 
 	fn on_exit(&mut self) {
 		let config_str = toml::to_string(&self.config).unwrap();
-		std::fs::write("plugins/config.toml", config_str).unwrap();
+		std::fs::write(
+			&self.path.parent().unwrap().join("plugins/config.toml"),
+			config_str,
+		)
+		.unwrap();
 	}
 
 	fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
@@ -213,7 +213,16 @@ impl epi::App for App {
 					)
 					.clicked()
 				{
-					std::process::Command::new("diva.exe")
+					#[cfg(not(target_os = "windows"))]
+					std::process::Command::new("wine")
+						.env("WINEPREFIX", self.wine_prefix.as_path())
+						.env("WINEDLLOVERRIDES", "dinput8=n,b")
+						.arg(self.path.as_path())
+						.arg("--launch")
+						.spawn()
+						.unwrap();
+					#[cfg(target_os = "windows")]
+					std::process::Command::new(self.path.as_path())
 						.arg("--launch")
 						.spawn()
 						.unwrap();
@@ -293,6 +302,30 @@ impl App {
 		});
 
 		simple_checkbox("Window scaling", &mut self.config.window.scaling, ui);
+
+		#[cfg(not(target_os = "windows"))]
+		ui.horizontal(|ui| {
+			if ui.button("Set wine prefix").clicked() {
+				self.wine_prefix = rfd::FileDialog::new().pick_folder().unwrap_or_default();
+			}
+			ui.add_sized(
+				ui.available_size(),
+				egui::TextEdit::singleline(&mut self.wine_prefix.to_str().unwrap_or_default()),
+			);
+		});
+
+		ui.horizontal(|ui| {
+			if ui.button("Set diva.exe path").clicked() {
+				self.path = rfd::FileDialog::new()
+					.add_filter("exe", &["exe"])
+					.pick_file()
+					.unwrap_or_default();
+			}
+			ui.add_sized(
+				ui.available_size(),
+				egui::TextEdit::singleline(&mut self.path.to_str().unwrap_or_default()),
+			);
+		});
 	}
 
 	fn draw_graphics_tab(&mut self, ui: &mut egui::Ui) {
