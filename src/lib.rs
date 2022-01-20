@@ -158,7 +158,7 @@ pub struct App {
 
 impl epi::App for App {
 	fn name(&self) -> &str {
-		"launcher-egui`"
+		"launcher-egui"
 	}
 
 	fn setup(
