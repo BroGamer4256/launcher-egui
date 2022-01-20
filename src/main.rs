@@ -8,7 +8,7 @@ fn main() {
 			..Default::default()
 		}),
 		eframe::NativeOptions {
-			initial_window_size: Some(egui::vec2(450.0, 4750.0)),
+			initial_window_size: Some(egui::vec2(450.0, 475.0)),
 			..Default::default()
 		},
 	)
