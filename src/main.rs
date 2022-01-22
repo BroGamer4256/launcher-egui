@@ -126,9 +126,6 @@ pub struct Graphics {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct App {
-	path: std::path::PathBuf,
-	#[cfg(not(target_os = "windows"))]
-	wine_prefix: std::path::PathBuf,
 	#[serde(skip)]
 	current_tab: &'static str,
 
@@ -160,23 +157,14 @@ impl epi::App for App {
 		if let Some(storage) = _storage {
 			*self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
 		}
+		self.current_tab = "window";
 
-		while !self.path.exists() && self.path.file_name().unwrap_or_default() != "diva.exe" {
-			self.path = rfd::FileDialog::new()
-				.add_filter("exe", &["exe"])
-				.set_directory(".")
-				.set_file_name("diva.exe")
-				.set_title("Select diva.exe")
-				.pick_file()
-				.unwrap_or_default();
-		}
-
-		if !std::path::Path::new(&self.path.parent().unwrap().join("plugins/config.toml")).exists()
+		if !std::path::Path::new("plugins/config.toml").exists()
 		{
 			return;
 		}
 		let config_str =
-			std::fs::read_to_string(&self.path.parent().unwrap().join("plugins/config.toml"))
+			std::fs::read_to_string("plugins/config.toml")
 				.unwrap();
 		self.config = toml::from_str(config_str.as_str()).unwrap();
 	}
@@ -188,7 +176,7 @@ impl epi::App for App {
 	fn on_exit(&mut self) {
 		let config_str = toml::to_string(&self.config).unwrap();
 		std::fs::write(
-			&self.path.parent().unwrap().join("plugins/config.toml"),
+			"plugins/config.toml",
 			config_str,
 		)
 		.unwrap();
@@ -206,29 +194,6 @@ impl epi::App for App {
 
 		egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
 			ui.horizontal(|ui| {
-				if ui
-					.add_sized(
-						vec2_x_modify(&mut ui.available_size(), 2.0),
-						egui::Button::new("Launch"),
-					)
-					.clicked()
-				{
-					#[cfg(not(target_os = "windows"))]
-					std::process::Command::new("wine")
-						.env("WINEPREFIX", self.wine_prefix.as_path())
-						.env("WINEDLLOVERRIDES", "dinput8=n,b")
-						.arg(self.path.as_path())
-						.arg("--launch")
-						.spawn()
-						.unwrap();
-					#[cfg(target_os = "windows")]
-					std::process::Command::new(self.path.as_path())
-						.arg("--launch")
-						.spawn()
-						.unwrap();
-
-					frame.quit();
-				}
 				if ui
 					.add_sized(ui.available_size(), egui::Button::new("Quit"))
 					.clicked()
@@ -302,30 +267,6 @@ impl App {
 		});
 
 		simple_checkbox("Window scaling", &mut self.config.window.scaling, ui);
-
-		#[cfg(not(target_os = "windows"))]
-		ui.horizontal(|ui| {
-			if ui.button("Set wine prefix").clicked() {
-				self.wine_prefix = rfd::FileDialog::new().pick_folder().unwrap_or_default();
-			}
-			ui.add_sized(
-				ui.available_size(),
-				egui::TextEdit::singleline(&mut self.wine_prefix.to_str().unwrap_or_default()),
-			);
-		});
-
-		ui.horizontal(|ui| {
-			if ui.button("Set diva.exe path").clicked() {
-				self.path = rfd::FileDialog::new()
-					.add_filter("exe", &["exe"])
-					.pick_file()
-					.unwrap_or_default();
-			}
-			ui.add_sized(
-				ui.available_size(),
-				egui::TextEdit::singleline(&mut self.path.to_str().unwrap_or_default()),
-			);
-		});
 	}
 
 	fn draw_graphics_tab(&mut self, ui: &mut egui::Ui) {
