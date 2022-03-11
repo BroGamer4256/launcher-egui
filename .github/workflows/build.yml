@@ -20,10 +20,6 @@ jobs:
         with:
           command: build
           args: --target x86_64-pc-windows-gnu --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort
-      - name: Rename to .dva
-        shell: cmd
-        run: |
-          rename target\x86_64-pc-windows-gnu\release\launcher_egui.dll launcher_egui.dva
       - uses: actions/upload-artifact@v2
         with:
-          path: target/x86_64-pc-windows-gnu/release/launcher_egui.dva
+          path: target/x86_64-pc-windows-gnu/release/launcher_egui.exe
