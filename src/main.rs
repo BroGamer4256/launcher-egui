@@ -1,3 +1,4 @@
+#![feature(derive_default_enum)]
 use eframe::{egui, epi};
 use std::{
 	hash::{Hash, Hasher},
@@ -217,10 +218,59 @@ pub struct Translation {
 	translations: Vec<InternalTranslation>,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, EnumString, EnumIter, IntoStaticStr)]
+pub enum SubGameStates {
+	SUB_DATA_INITIALIZE,
+	SUB_SYSTEM_STARTUP,
+	SUB_SYSTEM_STARTUP_ERROR,
+	SUB_WARNING,
+	SUB_LOGO,
+	SUB_RATING,
+	SUB_DEMO,
+	SUB_TITLE,
+	SUB_RANKING,
+	SUB_SCORE_RANKING,
+	SUB_CM,
+	SUB_PHOTO_MODE_DEMO,
+	SUB_SELECTOR,
+	SUB_GAME_MAIN,
+	SUB_GAME_SEL,
+	SUB_STAGE_RESULT,
+	SUB_SCREEN_SHOT_SEL,
+	SUB_SCREEN_SHOT_RESULT,
+	SUB_GAME_OVER,
+	SUB_DATA_TEST_MAIN,
+	SUB_DATA_TEST_MISC,
+	SUB_DATA_TEST_OBJ,
+	SUB_DATA_TEST_STG,
+	SUB_DATA_TEST_MOT,
+	SUB_DATA_TEST_COLLISION,
+	SUB_DATA_TEST_SPR,
+	SUB_DATA_TEST_AET,
+	SUB_DATA_TEST_AUTH_3D,
+	SUB_DATA_TEST_CHR,
+	SUB_DATA_TEST_ITEM,
+	SUB_DATA_TEST_PERF,
+	SUB_DATA_TEST_PVSCRIPT,
+	SUB_DATA_TEST_PRINT,
+	SUB_DATA_TEST_CARD,
+	SUB_DATA_TEST_OPD,
+	SUB_DATA_TEST_SLIDER,
+	SUB_DATA_TEST_GLITTER,
+	SUB_DATA_TEST_GRAPHICS,
+	SUB_DATA_TEST_COLLECTION_CARD,
+	SUB_TEST_MODE_MAIN,
+	SUB_APP_ERROR,
+	#[default]
+	SUB_MAX,
+}
+
 #[derive(Default, Debug, PartialEq, Clone)]
 pub struct InternalTranslation {
 	old: String,
 	new: String,
+	state: SubGameStates,
 }
 
 #[derive(Default)]
@@ -500,6 +550,11 @@ impl epi::App for App {
 				.as_array_of_tables()
 				.unwrap()
 			{
+				let state = if table.contains_key("state") {
+					SubGameStates::from_str(table["state"].as_str().unwrap()).unwrap()
+				} else {
+					SubGameStates::SUB_MAX
+				};
 				self.config
 					.translations
 					.last_mut()
@@ -508,6 +563,7 @@ impl epi::App for App {
 					.push(InternalTranslation {
 						old: table["old"].as_str().unwrap().to_string(),
 						new: table["new"].as_str().unwrap().to_string(),
+						state: state,
 					});
 			}
 		}
@@ -734,6 +790,10 @@ impl epi::App for App {
 			{
 				table["old"] = toml_edit::value(&translations_data.translations[i].old);
 				table["new"] = toml_edit::value(&translations_data.translations[i].new);
+				if table.contains_key("state") {
+					let state_str: &'static str = translations_data.translations[i].state.into();
+					table["state"] = toml_edit::value(state_str);
+				}
 			}
 
 			let translation_str = translation_doc.doc.to_string();
@@ -938,20 +998,25 @@ impl App {
 			if ui.add(egui::Button::new("+")).clicked() {
 				vec.push(Buttons::F1);
 			}
-			for button in vec {
+			for (i, button) in vec.into_iter().enumerate() {
 				button.hash(&mut hasher);
-				egui::ComboBox::from_id_source(hasher.finish())
-					.selected_text(format!("{:?}", button))
-					.width(ui.available_width() / 4.0)
-					.show_ui(ui, |ui| {
-						for button_variant in Buttons::iter() {
-							ui.selectable_value(
-								button,
-								button_variant,
-								format!("{:?}", button_variant),
-							);
-						}
-					});
+				ui.horizontal(|ui| {
+					if ui.add(egui::Button::new("-")).clicked() {
+						//vec.remove(i);
+					}
+					egui::ComboBox::from_id_source(hasher.finish())
+						.selected_text(format!("{:?}", button))
+						.width(ui.available_width() / 4.0)
+						.show_ui(ui, |ui| {
+							for button_variant in Buttons::iter() {
+								ui.selectable_value(
+									button,
+									button_variant,
+									format!("{:?}", button_variant),
+								);
+							}
+						});
+				});
 			}
 		});
 	}
@@ -1047,6 +1112,7 @@ impl App {
 	}
 
 	fn draw_translation_tab(&mut self, ui: &mut egui::Ui) {
+		let mut hasher = std::collections::hash_map::DefaultHasher::new();
 		for translation in &mut self.config.translations {
 			egui::CollapsingHeader::new(&translation.language).show(ui, |ui| {
 				ui.label(format!("Author: {}", translation.author));
@@ -1056,8 +1122,32 @@ impl App {
 						.translations
 						.push(InternalTranslation::default());
 				}
-				for internal_translation in &mut translation.translations {
+				for (i, internal_translation) in
+					&mut translation.translations.iter_mut().enumerate()
+				{
 					ui.horizontal(|ui| {
+						if ui.add(egui::Button::new("-")).clicked() {
+							//vec.remove(i);
+						}
+						if internal_translation.state != SubGameStates::SUB_MAX {
+							internal_translation.old.hash(&mut hasher);
+							egui::ComboBox::from_id_source(hasher.finish())
+								.selected_text(format!("{:?}", internal_translation.state))
+								.width(ui.available_width() / 4.0)
+								.show_ui(ui, |ui| {
+									for variant in SubGameStates::iter() {
+										if variant == SubGameStates::SUB_MAX {
+											continue;
+										}
+
+										ui.selectable_value(
+											&mut internal_translation.state,
+											variant,
+											format!("{:?}", variant),
+										);
+									}
+								});
+						}
 						ui.add_sized(
 							vec2_x_modify(&mut ui.available_size(), 2.0),
 							egui::TextEdit::singleline(&mut internal_translation.old),
